@@ -1,0 +1,111 @@
+---
+title: 'Application: Simple Random Walk'
+author: "Joshua Blank, Isabelle Estrada"
+date: "2023-04-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# n = 100:
+```{r}
+n <- 100
+T <- rep(NA, 10000)
+L <- rep(NA, 10000)
+M <- rep(NA, 10000)
+
+for (i in 1:10000){
+  X = sample(c(-1, 1), 2*n, replace = TRUE)
+  path = cumsum(X)
+  T[i] = 2*n - which.max(rev(path) == 0) + 1
+  L[i] = sum(path > 0)
+  M[i] = which.max(path)
+}
+```
+
+```{r}
+hist(T/(2*n))
+hist(M/(2*n))
+hist(L/(2*n))
+```
+
+```{r}
+mean(T/(2*n))
+mean(L/(2*n))
+mean(M/(2*n))
+```
+
+
+The distributions of T/(2n), L/(2n), and M/(2n) are all bimodal. We would expect their distributions to be symmetric if A and B are evenly matched. Instead we see that A is either leading for most of the game or B is leading for most of the game. Having high peaks at either 0 or 1 for all of these variables shows that it is more likely for either team to be leading for most of the game as opposed to the leads changing frequently (in which we would expect to have a peak at 0.5 as well). We would expect the largest lead at either the beginning of the game or the end of the game. Since there is a much higher peak at 1 for T/(2n), we would expect the last tie to happen more frequently at the end of the game as opposed to the beginning of the game.
+
+Additionally, the expected values of all of the variables are close to 0.5. This would also lead us to believe that the distributions of T/(2n), L/(2n), and M/(2n) are symmetric. However, this is a result of higher frequencies of values at either 0 or 1 which makes the bimodal nature of these variables even more surprising.
+
+
+# n = 30:
+```{r}
+n <- 30
+T <- rep(NA, 10000)
+L <- rep(NA, 10000)
+M <- rep(NA, 10000)
+
+for (i in 1:10000){
+  X = sample(c(-1, 1), 2*n, replace = TRUE)
+  path = cumsum(X)
+  T[i] = 2*n - which.max(rev(path) == 0) + 1
+  L[i] = sum(path > 0)
+  M[i] = which.max(path)
+}
+```
+
+```{r}
+hist(T/(2*n))
+hist(M/(2*n))
+hist(L/(2*n))
+```
+
+```{r}
+mean(T/(2*n))
+mean(L/(2*n))
+mean(M/(2*n))
+```
+
+
+# n <- 300:
+```{r}
+n <- 300
+T <- rep(NA, 10000)
+L <- rep(NA, 10000)
+M <- rep(NA, 10000)
+
+for (i in 1:10000){
+  X = sample(c(-1, 1), 2*n, replace = TRUE)
+  path = cumsum(X)
+  T[i] = 2*n - which.max(rev(path) == 0) + 1
+  L[i] = sum(path > 0)
+  M[i] = which.max(path)
+}
+```
+
+```{r}
+hist(T/(2*n))
+hist(M/(2*n))
+hist(L/(2*n))
+```
+
+```{r}
+mean(T/(2*n))
+mean(L/(2*n))
+mean(M/(2*n))
+```
+
+
+Whether we decrease or increase n for the most part does not change the bimodal distributions of T/(2n), L/(2n), and M/(2n), nor does n change which peaks are higher in each distribution. The exception to this is that when n = 30, T/(2n) has a negative skew and we lose the first peak. Thus when n is small, we would expect B to lead for most of the game and for the last tie to occur at the end of the game. This is reflected in the higher expected value of T/(2n) for n = 30 (E[T/(2n)] = 0.6 which is farther from 0.5 compared to the other expected values).
+
+
+
+
+
+
