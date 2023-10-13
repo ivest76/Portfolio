@@ -1,0 +1,398 @@
+---
+title: "STAT 545 AA5"
+author: "Joshua Blank & Isabelle Estrada"
+date: "2023-05-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages:
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+```
+
+
+# Part 1
+
+## Setup and Simulation
+```{r}
+n <- 20000
+
+queue1 <- rep(NA, n)
+queue2 <- rep(NA, n)
+queue3 <- rep(NA, n)
+queue4 <- rep(NA, n)
+queue5 <- rep(NA, n)
+queue6 <- rep(NA, n)
+
+queue1[1] <- 0
+queue2[1] <- 0
+queue3[1] <- 0
+queue4[1] <- 0
+queue5[1] <- 0
+queue6[1] <- 0
+
+time <- rep(NA, n)
+time[1] <- 0
+
+enqueue1 <- list()
+enqueue2 <- list()
+enqueue3 <- list()
+enqueue4 <- list()
+enqueue5 <- list()
+enqueue6 <- list()
+
+customer_time <- list()
+```
+
+```{r}
+for (i in 2:n) {
+  type <- sample(c(1, 2, 3), 1, prob=c(0.3, 0.3, 0.4))
+  rate = (min(2, queue1[i-1]) + min(2, queue2[i-1]) + min(2, queue3[i-1]) +
+            min(2, queue4[i-1]) + min(2, queue5[i-1]) + min(2, queue6[i-1]))*0.2
+  enqueue <- rexp(1, 1)
+  if (rate != 0) dequeue <- rexp(1, rate)
+  else dequeue <- enqueue + 1
+  
+  queue1[i] <- queue1[i-1]
+  queue2[i] <- queue2[i-1]
+  queue3[i] <- queue3[i-1]
+  queue4[i] <- queue4[i-1]
+  queue5[i] <- queue5[i-1]
+  queue6[i] <- queue6[i-1]
+  
+  if (dequeue < enqueue) {
+    time[i] <- time[i-1] + dequeue
+    queues <- c(queue1[i-1], queue2[i-1], queue3[i-1], queue4[i-1],
+                queue5[i-1], queue6[i-1])
+    valid_queues <- which(queues != 0)
+    
+    if (length(valid_queues) > 1) queue <- sample(valid_queues, 1)
+    else queue <- valid_queues[1]
+      
+    if (queue == 1) {
+      queue1[i] <- queue1[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue1[[1]])
+      enqueue1 <- enqueue1[-1]
+    }
+    else if (queue == 2) {
+      queue2[i] <- queue2[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue2[[1]])
+      enqueue2 <- enqueue2[-1]
+    }
+    else if (queue == 3) {
+      queue3[i] <- queue3[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue3[[1]])
+      enqueue3 <- enqueue3[-1]
+    }
+    else if (queue == 4) {
+      queue4[i] <- queue4[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue4[[1]])
+      enqueue4 <- enqueue4[-1]
+    }
+    else if (queue == 5) {
+      queue5[i] <- queue5[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue5[[1]])
+      enqueue5 <- enqueue5[-1]
+    }
+    else if (queue == 6) {
+      queue6[i] <- queue6[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue6[[1]])
+      enqueue6 <- enqueue6[-1]
+    }
+  }
+  
+  else if (type == 1) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue1[i-1], queue3[i-1], queue5[i-1])
+    min_queues <- which(min(queues) == queues)
+      
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+      
+    if (min_queue == 1) {
+      queue1[i] <- queue1[i-1] + 1
+      enqueue1 <- c(enqueue1, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue3[i] <- queue3[i-1] + 1
+      enqueue3 <- c(enqueue3, list(time[i]))
+    }
+    else if (min_queue == 3) {
+      queue5[i] <- queue5[i-1] + 1
+      enqueue5 <- c(enqueue5, list(time[i]))
+    }
+  }
+  
+  else if (type == 2) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue2[i-1], queue4[i-1], queue6[i-1])
+    min_queues <- which(min(queues) == queues)
+      
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+      
+    if (min_queue == 1) {
+      queue2[i] <- queue2[i-1] + 1
+      enqueue2 <- c(enqueue2, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue4[i] <- queue4[i-1] + 1
+      enqueue4 <- c(enqueue4, list(time[i]))
+    }
+    else if (min_queue == 3) {
+      queue6[i] <- queue6[i-1] + 1
+      enqueue6 <- c(enqueue6, list(time[i]))
+    }
+  }
+  
+  else if (type == 3) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue1[i-1], queue2[i-1], queue3[i-1], queue4[i-1], queue5[i-1],
+                queue6[i-1])
+    min_queues <- which(min(queues) == queues)
+      
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+      
+    if (min_queue == 1) {
+      queue1[i] <- queue1[i-1] + 1
+      enqueue1 <- c(enqueue1, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue2[i] <- queue2[i-1] + 1
+      enqueue2 <- c(enqueue2, list(time[i]))
+    }
+    else if (min_queue == 3) {
+      queue3[i] <- queue3[i-1] + 1
+      enqueue3 <- c(enqueue3, list(time[i]))
+    }
+    else if (min_queue == 4) {
+      queue4[i] <- queue4[i-1] + 1
+      enqueue4 <- c(enqueue4, list(time[i]))
+    }
+    else if (min_queue == 5) {
+      queue5[i] <- queue5[i-1] + 1
+      enqueue5 <- c(enqueue5, list(time[i]))
+    }
+    else if (min_queue == 6) {
+      queue6[i] <- queue6[i-1] + 1
+      enqueue6 <- c(enqueue6, list(time[i]))
+    }
+  }
+}
+
+station <- queue1 + queue2 + queue3 + queue4 + queue5 + queue6
+customer_time <- unlist(customer_time)
+```
+
+## Long run distribution of the number of cars in the system:
+```{r}
+table(station) / n
+hist(station)
+```
+
+## Long run fraction of time there are no cars in the system:
+```{r}
+sum(station == 0) / n
+```
+
+## Long run average number of customers in the system:
+```{r}
+mean(station)
+```
+
+## Long run distribution of the amount of time a customer spends in the system:
+```{r}
+hist(customer_time, 100)
+```
+
+## Average time a customer spends in the system:
+```{r}
+mean(customer_time)
+```
+
+## Longest amount of time a customer spends in the system:
+```{r}
+max(customer_time)
+```
+
+
+
+
+# Part 2
+
+There are now 4 lines with 3 pumps serving each line. 50% of cars will only join lines 2 and 4, 20% will only join lines 1 and 3, and the rest will join any line. This reflects the fact that most U.S. vehicles have their fuel door on the left side of the car. Also, cars leave the gas station at a slower rate now, 0.15 cars per minute.
+
+## Setup and Simulation
+```{r}
+n <- 20000
+
+queue1 <- rep(NA, n)
+queue2 <- rep(NA, n)
+queue3 <- rep(NA, n)
+queue4 <- rep(NA, n)
+
+queue1[1] <- 0
+queue2[1] <- 0
+queue3[1] <- 0
+queue4[1] <- 0
+
+time <- rep(NA, n)
+time[1] <- 0
+
+enqueue1 <- list()
+enqueue2 <- list()
+enqueue3 <- list()
+enqueue4 <- list()
+
+customer_time <- list()
+```
+
+```{r}
+for (i in 2:n) {
+  type <- sample(c(1, 2, 3), 1, prob=c(0.2, 0.5, 0.3))
+  rate = (min(3, queue1[i-1]) + min(3, queue2[i-1]) + min(3, queue3[i-1]) +
+            min(3, queue4[i-1]))*0.15
+  enqueue <- rexp(1, 1)
+  if (rate != 0) dequeue <- rexp(1, rate)
+  else dequeue <- enqueue + 1
+  
+  queue1[i] <- queue1[i-1]
+  queue2[i] <- queue2[i-1]
+  queue3[i] <- queue3[i-1]
+  queue4[i] <- queue4[i-1]
+  
+  if (dequeue < enqueue) {
+    time[i] <- time[i-1] + dequeue
+    queues <- c(queue1[i-1], queue2[i-1], queue3[i-1], queue4[i-1])
+    valid_queues <- which(queues != 0)
+    
+    if (length(valid_queues) > 1) queue <- sample(valid_queues, 1)
+    else queue <- valid_queues[1]
+    
+    if (queue == 1) {
+      queue1[i] <- queue1[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue1[[1]])
+      enqueue1 <- enqueue1[-1]
+    }
+    else if (queue == 2) {
+      queue2[i] <- queue2[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue2[[1]])
+      enqueue2 <- enqueue2[-1]
+    }
+    else if (queue == 3) {
+      queue3[i] <- queue3[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue3[[1]])
+      enqueue3 <- enqueue3[-1]
+    }
+    else if (queue == 4) {
+      queue4[i] <- queue4[i-1] - 1
+      customer_time <- c(customer_time, time[i] - enqueue4[[1]])
+      enqueue4 <- enqueue4[-1]
+    }
+  }
+  
+  else if (type == 1) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue1[i-1], queue3[i-1])
+    min_queues <- which(min(queues) == queues)
+    
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+    
+    if (min_queue == 1) {
+      queue1[i] <- queue1[i-1] + 1
+      enqueue1 <- c(enqueue1, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue3[i] <- queue3[i-1] + 1
+      enqueue3 <- c(enqueue3, list(time[i]))
+    }
+  }
+  
+  else if (type == 2) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue2[i-1], queue4[i-1])
+    min_queues <- which(min(queues) == queues)
+    
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+    
+    if (min_queue == 1) {
+      queue2[i] <- queue2[i-1] + 1
+      enqueue2 <- c(enqueue2, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue4[i] <- queue4[i-1] + 1
+      enqueue4 <- c(enqueue4, list(time[i]))
+    }
+  }
+  
+  else if (type == 3) {
+    time[i] <- time[i-1] + enqueue
+    queues <- c(queue1[i-1], queue2[i-1], queue3[i-1], queue4[i-1])
+    min_queues <- which(min(queues) == queues)
+    
+    if (length(min_queues) > 1) min_queue <- sample(min_queues, 1)
+    else min_queue <- min_queues[1]
+    
+    if (min_queue == 1) {
+      queue1[i] <- queue1[i-1] + 1
+      enqueue1 <- c(enqueue1, list(time[i]))
+    }
+    else if (min_queue == 2) {
+      queue2[i] <- queue2[i-1] + 1
+      enqueue2 <- c(enqueue2, list(time[i]))
+    }
+    else if (min_queue == 3) {
+      queue3[i] <- queue3[i-1] + 1
+      enqueue3 <- c(enqueue3, list(time[i]))
+    }
+    else if (min_queue == 4) {
+      queue4[i] <- queue4[i-1] + 1
+      enqueue4 <- c(enqueue4, list(time[i]))
+    }
+  }
+}
+
+station <- queue1 + queue2 + queue3 + queue4
+customer_time <- unlist(customer_time)
+```
+
+## Long run distribution of the number of cars in the system:
+```{r}
+table(station) / n
+hist(station)
+```
+
+## Long run fraction of time there are no cars in the system:
+```{r}
+sum(station == 0) / n
+```
+
+## Long run average number of customers in the system:
+```{r}
+mean(station)
+```
+
+## Long run distribution of the amount of time a customer spends in the system:
+```{r}
+hist(customer_time, 100)
+```
+
+## Average time a customer spends in the system:
+```{r}
+mean(customer_time)
+```
+
+
+## Longest amount of time a customer spends in the system:
+```{r}
+max(customer_time)
+```
+
