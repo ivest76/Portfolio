@@ -1,0 +1,290 @@
+---
+title: 'Application: More Markov Chains'
+author: "Joshua Blank, Isabelle Estrada"
+date: "2023-05-02"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages:
+```{r}
+library(tidyverse)
+library(markovchain) # for plotting state diagram
+library(igraph)
+library(expm)
+library(viridis)
+library(viridisLite)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(prismatic) # for auto-contrast colors (black/numbers number in transition matrix heat map)
+library(colourvalues) # for using with viridis
+library(kableExtra)
+library(multicool)
+library(combinat)
+```
+
+Functions:
+```{r}
+mean_time_to_absorption <- function(transition_matrix, state_names = NULL) {
+  absorbing_states = which(diag(transition_matrix) == 1)
+  if (length(absorbing_states) == 0) stop("There are no absorbing states.")
+  n_states = nrow(transition_matrix)
+  transient_states = setdiff(1:n_states, absorbing_states)
+  Q = P[transient_states, transient_states]
+  mtta = solve(diag(nrow(Q)) - Q, rep(1, nrow(Q)))
+  if (is.null(state_names)) state_names = 1:n_states
+  data.frame(start_state = state_names[transient_states],
+             mean_time_to_absorption = mtta)
+}
+
+pmf_of_time_to_absorption <- function(transition_matrix, state_names = NULL, start_state) {
+  absorbing_states = which(diag(transition_matrix) == 1)
+  if (length(absorbing_states) == 0) stop("There are no absorbing states.")
+  n_states = nrow(transition_matrix)
+  transient_states = setdiff(1:n_states, absorbing_states)
+  if (is.null(state_names)) state_names = 1:n_states
+  if (which(state_names == start_state) %in% absorbing_states) stop("Initial state is an absorbing state; absorption at time 0.")
+  n = 1
+  TTA_cdf = sum(P[which(state_names == start_state), absorbing_states])
+  while (max(TTA_cdf) < 0.999999) {
+    n = n + 1
+    TTA_cdf = c(TTA_cdf, sum((P %^% n)[which(state_names == start_state), absorbing_states]))
+  }
+  TTA_pmf = TTA_cdf - c(0, TTA_cdf[-length(TTA_cdf)])
+  data.frame(n = 1:length(TTA_pmf),
+             prob_absorb_at_time_n = TTA_pmf)
+}
+
+transition_prob <- function(initial, new) {
+  initial_probs = (1/6) * initial
+  if (length(new) < length(initial)) {
+      num_zeros = length(initial) - length(new)
+      new = c(new, rep(0, num_zeros))
+  }
+  p_ij = 0
+  for (perm in unique(permn(new))) {
+    p_ij = p_ij + dmultinom(perm, size=6, prob=initial_probs)
+  }
+  return(p_ij)
+}
+
+transition_prob2 <- function(initial, new) {
+  prob = 0
+  if ((initial < new) & (initial*2 >= new)) {
+    gain = new - initial
+    i = 0
+    for (size in gain:initial) {
+      if ((size - gain) %% 2 == 0) {
+        prob = prob + (dbinom(gain+i, size, 0.45)/initial)
+        i = i + 1
+      }
+    }
+  }
+  else if (initial == new) {
+    bets = 1:initial
+    bets = bets[bets %% 2 == 0]
+    for (size in bets) {
+      prob = prob + (dbinom(size/2, size, 0.45)/initial)
+    }
+  }
+  else if (initial > new) {
+    loss = initial - new
+    i = 0
+    for (size in loss:initial) {
+      if ((size - loss) %% 2 == 0) {
+        prob = prob + (dbinom(loss+i, size, 0.55)/initial)
+        i = i + 1
+      }
+    }
+  }
+  
+  return(prob)
+}
+```
+
+
+#Part 1
+
+##1
+```{r}
+n = 10000
+T_sims = rep(NA, n)
+
+for (i in 1:n) {
+  dice = 1:6
+  t = 0
+  
+  while (length(unique(dice)) > 1) {
+    dice = sample(dice, 6, replace=TRUE)
+    t = t + 1
+  }
+  
+  T_sims[i] = t
+}
+```
+
+Histogram:
+```{r}
+hist(T_sims, breaks=50, main='Histogram of T', xlab='T')
+```
+
+Expected Value:
+```{r}
+mean(T_sims)
+```
+
+
+##2
+```{r}
+state_names = c('(1, 1, 1, 1, 1, 1)', '(2, 1, 1, 1, 1)', '(3, 1, 1, 1)',
+                '(2, 2, 1, 1)', '(4, 1, 1)', '(3, 2, 1)', '(5, 1)',
+                '(2, 2, 2)', '(4, 2)', '(3, 3)', '(6)')
+```
+
+The state space is all possible partitions of 6 since we are working with a 6-sided die and are trying to get to an end-state of a new 6-sided die with all the same integer. Each partition represents a uniqueness score of the resulting dice after 6 rolls which counts the frequencies of each integer. For example, at the beginning of the round, our first dice has a uniqueness of (1, 1, 1, 1, 1, 1) since we have 1 of each integer. Then, if we roll (4, 2, 2, 4, 3, 4), our uniqueness score would be (3, 2, 1). However, since every roll is dependent, we have to take into account the permutations of every partition, calculate the probability of each permutation, and add them up to get the conditional probabilities of each state. Thus, we have our transition matrix.
+
+
+##3
+```{r}
+states = list(c(1, 1, 1, 1, 1, 1), c(2, 1, 1, 1, 1), c(3, 1, 1, 1),
+              c(2, 2, 1, 1), c(4, 1, 1), c(3, 2, 1), c(5, 1),
+              c(2, 2, 2), c(4, 2), c(3, 3), c(6))
+
+P = matrix(rep(0, 121), 11, 11)
+
+for (i in 1:10) {
+  initial = unlist(states[i])
+  for (j in 1:11) {
+    new = unlist(states[j])
+    if (length(new) <= length(initial)) {
+      P[i,j] = transition_prob(initial, new)
+    }
+  }
+}
+P[11,11] = 1
+
+P
+```
+
+
+##4
+Expected Value:
+```{r}
+T_means = mean_time_to_absorption(P, state_names)
+T_means[1,2]
+```
+
+
+##5
+PMF:
+```{r}
+T_pmf <- pmf_of_time_to_absorption(P, state_names, '(1, 1, 1, 1, 1, 1)')
+head(T_pmf, 40)
+```
+
+PMF alongside histogram of simulation:
+```{r}
+T_df = data.frame(T_sims)
+
+ggplot() +
+  geom_histogram(T_df, mapping = aes(x = T_sims,
+                                     y=..count../sum(..count..)),
+                 bins=60, alpha=0.5, color='blue') +
+  geom_line(head(T_pmf, 60), mapping = aes(x=n, y=prob_absorb_at_time_n),
+            size=1) +
+  labs(title="PMF (Line) vs. Simulation (Historgram)", x ="T", y = "Frequency")
+```
+
+Both the Markovian T and the simulated T have a skewed right distribution centered around 9.6/9.7. It makes sense that these distributions would be the same since for both ways that we solved for E(T), the means were close to each other. 
+
+
+
+#Part 2
+
+At a casino, there exists a slot machine that is guaranteed to eventually steal all of your money. Given that you have \$13 or less, you can play this slot and bet as much of your money as you want. A player arrives with \$7. For each dollar that the player bets, there is a 45% chance that they will double that dollar and a 55% chance that they will lose it. However, the machine never allows the player to have more than \$13 in total. Additionally, on each individual slot pull, the amount of money that the player bets is determined by the amount of money that they currently have. For example, if a player has \$7, there is a 1/7 chance that they bet all \$7, a 1/7 chance that they bet \$6, and so on. Let $M$ = the number of trials it takes for the player starting with \$7 to lose all of their money.
+
+##Simulation
+```{r}
+n=10000
+M_sims = rep(NA, n)
+
+for (i in 1:n){
+  money = 7
+  trials = 0
+  
+  while (money != 0) {
+    gamble = sample(1:money, 1)
+    keep = money - gamble
+    money = min(keep + rbinom(1, gamble, 0.45)*2, 13)
+    trials = trials + 1
+  }
+  
+  M_sims[i] = trials
+}
+```
+
+Histogram:
+```{r}
+hist(M_sims, 100)
+```
+
+The distribution of the trials until we run out of money is skewed right which makes sense because we have a cap on the amount of money we can make. Additionally since the game's structure is not favorable toward the player, we would expect the average number of games that it takes the player to get to 0 dollars to be close to the max amount of money the player can win since even if they do at some point max out at 13 dollars, it takes them less trials to get down to 0 than it does for them to get to 13. Thus, we have a higher frequency of lower amounts of trials.
+
+Expected Value:
+```{r}
+mean(M_sims)
+```
+
+
+##Transition Matrix
+```{r}
+states = 13:0
+
+state_names = as.character(states)
+
+P = matrix(rep(0, 196), 14, 14)
+
+for (i in 1:13) {
+  for (j in 1:14) {
+    P[i,j] = transition_prob2(states[i], states[j])
+  }
+}
+P[14,14] = 1
+
+for (i in 1:7) {
+  left = 1-sum(P[i,])
+  P[i,1] = P[i,1] + left
+}
+
+P
+```
+
+Expected Value:
+```{r}
+M_means = mean_time_to_absorption(P, state_names)
+M_means[7,2]
+```
+
+PMF:
+```{r}
+M_pmf <- pmf_of_time_to_absorption(P, state_names, '7')
+head(M_pmf, 95)
+```
+
+PMF alongside histogram of simulation:
+```{r}
+M_df = data.frame(M_sims)
+
+ggplot() +
+  geom_histogram(M_df, mapping = aes(x = M_sims,
+                                     y=..count../sum(..count..)),
+                 bins=150, alpha=0.5, color='blue') +
+  geom_line(head(M_pmf, 150), mapping = aes(x=n, y=prob_absorb_at_time_n),
+            size=1) +
+  labs(title="PMF (Line) vs. Simulation (Historgram)", x ="M", y = "Frequency")
+```
+
